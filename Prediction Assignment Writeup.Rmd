@@ -1,0 +1,88 @@
+---
+title: " Practical Machine Learning - Prediction Assignment Writeup"
+author: "Bondarev Maksim"
+date: "December 7, 2021"
+output: html_document
+---
+*Created with knitr*
+
+### 1. Libraries
+```{r results='hide', message=FALSE}
+library(caret)
+library(rattle)
+library(corrplot)
+```
+
+### 2. Load Data
+Load the dataset.
+```{r results='hide', message=FALSE}
+
+TrainData <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"),header=TRUE)
+dim(TrainData)
+TestData <- read.csv(url("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"),header=TRUE)
+dim(TestData)
+
+```
+
+### 3. Create a partition of the traning data set and clean data
+
+```{r  message=FALSE}
+
+set.seed(32343)
+inTrain <- createDataPartition(TrainData$classe, p = 0.7, list = FALSE)
+trainData <- TrainData[inTrain, ]
+testData <- TrainData[-inTrain, ]
+dim(trainData)
+dim(testData)
+
+
+NZV <- nearZeroVar(trainData)
+trainData <- trainData[, -NZV]
+testData  <- testData[, -NZV]
+dim(trainData)
+dim(testData)
+
+mostlyNA <- sapply(trainData, function(x) mean(is.na(x))) > 0.95
+mostlyNATest <- sapply(testData, function(x) mean(is.na(x))) > 0.95
+trainData <- trainData[, mostlyNA==F]
+testData <- testData[, mostlyNATest==F]
+
+dim(trainData)
+dim(testData)
+
+trainData <- trainData[, -(1:5)]
+testData <- testData[, -(1:5)]
+
+dim(trainData)
+dim(testData)
+
+```
+### 4. Data Analysis 
+####  Check correlation among variables
+
+```{r results='hide', message=FALSE}
+
+correlation <- cor(trainData[, -54])
+corrplot(correlation, method="circle")
+
+```
+
+#### Classification tree method
+
+
+```{r message=FALSE}
+
+trControl <- trainControl(method="cv", number=5)
+model_CT <- train(classe~., , method="rpart", data=trainData, trControl=trControl)
+
+fancyRpartPlot(model_CT$finalModel)
+
+predict_train <- predict(model_CT,newdata=testData)
+
+confMatClassTree <- confusionMatrix(as.factor(testData$classe),predict_train)
+
+confMatClassTree$table
+
+confMatClassTree$overall[1]
+
+```
